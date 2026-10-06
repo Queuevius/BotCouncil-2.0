@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='UTF-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0'>
+<title>BotCouncil</title>
+<!-- BotCouncil window. Built by the JOHN thread (sessions John 7 to 9, 4-5 October 2026)
+     from admin-chat.html. No version numbers until 1.0 (Tony, 5 Oct 2026).
+     Sessions on the left (with Find and Ask above them), chat in the middle,
+     threads on the right. Every message in a thread session goes through
+     /admin-chat-proxy with the thread's name; the server adds the botskill post,
+     the thread's prompt accomplice and its unread updates, read fresh from disk,
+     and saves the conversation itself before and after the answer.
+     Right-hand boxes show threads leaving news for each other, and live
+     questions Tony approved. A live question shows in the chat as a yellow box
+     with Send and Skip. The bar above the chat shows money left on the AI key;
+     each answer shows its cost. After 10 minutes with no activity the window
+     goes idle (stops checking the server) until Tony moves or clicks. -->
+<style>
+  :root{--bg:#0d0d0d;--surface:#1a1a1a;--surface2:#242424;--surface3:#2e2e2e;--accent:#4f8ef7;--accent2:#7c3aed;--text:#e8e8e8;--muted:#888;--border:#333;--warn:#f5a524;--ok:#3fb950}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:system-ui,sans-serif;height:100vh;display:flex;flex-direction:column}
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 1.2rem;height:52px;display:flex;align-items:center;gap:1rem;flex-shrink:0}
+  .topbar a{color:var(--muted);text-decoration:none;font-size:.85rem}
+  .topbar a:hover{color:var(--text)}
+  .topbar .sep{color:var(--border)}
+  .topbar .title{font-weight:600;font-size:1rem}
+  .back-btn{margin-left:auto;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:.25rem .85rem;font-size:.8rem;color:var(--muted);text-decoration:none}
+  #app{display:flex;flex:1;overflow:hidden}
+  .sidebar{width:260px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+  .rightbar{width:300px;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+  .sidebar-header{padding:.9rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+  .sidebar-header span{font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+  .searchbox{padding:.7rem .8rem;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:.45rem}
+  .searchbox input{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:.5rem .7rem;font-size:.85rem;font-family:inherit}
+  .searchbox input:focus{outline:none;border-color:var(--accent)}
+  .searchbox .row{display:flex;gap:.4rem}
+  .sbtn{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:.35rem .5rem;font-size:.78rem;cursor:pointer}
+  .sbtn:hover{border-color:var(--muted)}
+  .sbtn.ask{border-color:var(--accent2)}
+  .conv-list,.thread-list{flex:1;overflow-y:auto;padding:.5rem}
+  .conv-item,.thread-item{padding:.6rem .8rem;border-radius:8px;cursor:pointer}
+  .conv-item:hover,.thread-item:hover{background:var(--surface2)}
+  .conv-item.active,.thread-item.active{background:var(--surface3)}
+  .conv-title{font-size:.85rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .conv-meta{font-size:.72rem;color:var(--muted);margin-top:.15rem}
+  .conv-snip{font-size:.75rem;color:var(--muted);margin-top:.3rem;line-height:1.4;white-space:normal}
+  .conv-snip b{color:var(--text)}
+  .conv-row{display:flex;align-items:center;justify-content:space-between;gap:.4rem}
+  .conv-menu-btn{color:var(--muted);font-size:1.1rem;cursor:pointer;flex-shrink:0;padding:0 .3rem;line-height:1;user-select:none}
+  .conv-menu-btn:hover{color:var(--text)}
+  .conv-menu{position:absolute;background:var(--surface3);border:1px solid var(--border);border-radius:8px;padding:.3rem;z-index:100;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+  .conv-menu div{padding:.45rem .9rem;font-size:.85rem;color:var(--text);cursor:pointer;border-radius:5px;white-space:nowrap}
+  .conv-menu div:hover{background:var(--surface2)}
+  .conv-empty{padding:1rem;font-size:.8rem;color:var(--muted);text-align:center}
+  .thread-name{font-size:.9rem;font-weight:600;display:flex;align-items:center;gap:.4rem;flex-wrap:wrap}
+  .badge{background:var(--warn);color:#000;border-radius:10px;font-size:.68rem;padding:.05rem .45rem;font-weight:700;cursor:pointer}
+  .badge:hover{filter:brightness(1.15)}
+  .pin{font-size:.7rem;color:var(--muted)}
+  .code{font-size:.7rem;color:var(--muted);font-weight:400}
+  .fold{margin-left:auto;color:var(--muted);cursor:pointer;font-size:1rem;padding:0 .25rem;user-select:none}
+  .fold:hover{color:var(--text)}
+  .sidebar-header span.your-threads{font-size:1.05rem;font-weight:700;color:var(--text);text-transform:none;letter-spacing:0}
+  #sessions-label{text-transform:none;letter-spacing:0;color:var(--text);font-size:.85rem;line-height:1.35}
+  .thread-item.talking{border:1px solid var(--accent2);margin-bottom:.4rem}
+  .thread-item.busy{border-color:var(--warn);box-shadow:0 0 8px rgba(245,165,36,.35)}
+  .council{margin-top:.5rem;max-height:220px;overflow-y:auto;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.4rem .5rem;display:flex;flex-direction:column;gap:.45rem;cursor:default}
+  .cev{font-size:.74rem;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+  .cev .who{font-weight:700}
+  .cev .who.sent{color:var(--accent)}
+  .cev .who.got{color:#c4a7ff}
+  .cev .when{color:var(--muted);font-weight:400}
+  .cev .reply{margin-top:.2rem;padding-left:.5rem;border-left:2px solid var(--ok);color:var(--text)}
+  .cev .reply.working{border-color:var(--warn);color:var(--warn);font-style:italic}
+  .cev .reply.error{border-color:#f85149;color:#f85149}
+  .cev .reply.quiet{border-color:var(--border);color:var(--muted)}
+  .cev .sum{color:var(--muted)}
+  .council-foot{display:flex;justify-content:flex-end}
+  .council-foot a{font-size:.7rem;color:var(--muted);cursor:pointer}
+  .council-foot a:hover{color:var(--text)}
+  .results-bar{padding:.5rem .9rem;font-size:.75rem;color:var(--muted);border-bottom:1px solid var(--border);display:flex;justify-content:space-between}
+  .results-bar a{color:var(--accent);cursor:pointer}
+  .chat-area{flex:1;display:flex;flex-direction:column;overflow:hidden}
+  .model-bar{padding:.6rem 1.2rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.6rem;background:var(--surface);flex-shrink:0;flex-wrap:wrap;font-size:.8rem;color:var(--muted)}
+  .model-bar .thread-label{color:var(--text);font-weight:600}
+  .model-btn{background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:.3rem .8rem;font-size:.78rem;cursor:pointer;white-space:nowrap}
+  .chip{border:1px solid var(--border);border-radius:10px;padding:.1rem .55rem;font-size:.74rem;white-space:nowrap}
+  .chip.low{border-color:var(--warn);color:var(--warn)}
+  .chip.idle{border-color:var(--accent2);color:#c4a7ff}
+  .messages{flex:1;overflow-y:auto;padding:1.5rem 1.2rem;display:flex;flex-direction:column;gap:1rem}
+  .msg{display:flex;gap:.75rem;max-width:860px}
+  .msg.user{align-self:flex-end;flex-direction:row-reverse}
+  .msg-bubble{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:.75rem 1rem;font-size:.9rem;line-height:1.6;white-space:pre-wrap;word-break:break-word}
+  .msg.user .msg-bubble{background:var(--surface3);border-color:var(--accent2)}
+  .msg-bubble.answer{border-color:#e8e8e8;background:var(--surface)}
+  .msg .msg-bubble.handoff{border:2px solid #d4a017;box-shadow:0 0 10px rgba(212,160,23,.35)}
+  .handoff-tag{font-size:.7rem;font-weight:700;color:#f0c94a;letter-spacing:.06em;margin-bottom:.35rem}
+  .handoff-btn{background:#2a2410;border:1px solid #d4a017;color:#f0c94a;border-radius:10px;padding:.15rem .65rem;font-size:.74rem;cursor:pointer;white-space:nowrap}
+  .handoff-btn:hover{background:#3a3214}
+  .msg .msg-bubble.flash{animation:hoflash 1.6s ease-out}
+  @keyframes hoflash{0%{box-shadow:0 0 0 6px rgba(240,201,74,.85)}100%{box-shadow:0 0 10px rgba(212,160,23,.35)}}
+  .msg-meta{margin-top:.4rem;font-size:.72rem;color:var(--muted)}
+  .msg-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0;margin-top:2px;background:var(--accent)}
+  .msg.user .msg-avatar{background:var(--accent2)}
+  .ask-box{margin:.6rem 0;border:2px solid var(--warn);border-radius:10px;background:#2a2210;padding:.6rem .8rem;white-space:pre-wrap}
+  .ask-head{font-weight:700;color:var(--warn);margin-bottom:.3rem}
+  .ask-btns{margin-top:.5rem;display:flex;gap:.5rem;align-items:center;font-size:.8rem;color:var(--muted)}
+  .ask-btns button{background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:.3rem .9rem;cursor:pointer;font-size:.8rem}
+  .ask-btns button.send{background:var(--warn);color:#000;border-color:var(--warn);font-weight:700}
+  .thinking{color:var(--muted);font-style:italic;font-size:.85rem}
+  .sources{margin-top:.7rem;display:flex;flex-direction:column;gap:.3rem}
+  .sources a{color:var(--accent);font-size:.8rem;cursor:pointer}
+  .unread-view{max-width:900px}
+  .unread-view h3{font-size:1rem;margin-bottom:.3rem}
+  .unread-view .note{color:var(--muted);font-size:.8rem;margin-bottom:.8rem}
+  .unread-view pre{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem;font-size:.82rem;line-height:1.5;white-space:pre-wrap;word-break:break-word;font-family:inherit}
+  .unread-view a{color:var(--accent);cursor:pointer;font-size:.85rem}
+  .input-bar{padding:1rem 1.2rem;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0;display:flex;gap:.75rem;align-items:flex-end}
+  .input-bar textarea{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:.75rem 1rem;font-size:.9rem;resize:none;min-height:44px;max-height:160px;line-height:1.5;font-family:inherit}
+  .input-bar textarea:focus{outline:none;border-color:var(--accent)}
+  .send-btn{background:var(--accent);color:#fff;border:none;border-radius:10px;width:44px;height:44px;font-size:1.1rem;cursor:pointer;flex-shrink:0}
+  .send-btn:disabled{opacity:.4;cursor:default}
+  .empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);gap:.5rem;text-align:center}
+  .empty-state .big{font-size:2.5rem}
+  .empty-state p{font-size:.9rem;max-width:460px;line-height:1.5}
+  .panel-btn{background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:.3rem .7rem;font-size:.78rem;cursor:pointer;white-space:nowrap}
+  /* code boxes, files, headings (John 11) */
+  .codebox{position:relative;background:#0a0a0a;border:1px solid var(--border);border-radius:8px;margin:.3rem 0;white-space:normal}
+  .codebox pre{margin:0;padding:2rem .9rem .7rem;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;line-height:1.45;white-space:pre;overflow-x:auto}
+  .codebox .copy{position:absolute;top:.35rem;right:.4rem}
+  .filecard{display:flex;align-items:center;justify-content:space-between;gap:.6rem;border:1px solid var(--accent);border-radius:8px;padding:.5rem .8rem;margin:.3rem 0;background:var(--surface2);white-space:normal}
+  .filecard button,.codebox .copy{background:var(--surface3);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:.2rem .7rem;font-size:.75rem;cursor:pointer}
+  .filecard button:hover,.codebox .copy:hover{border-color:var(--accent)}
+  .h1{display:inline-block;font-size:1.7rem;font-weight:800;line-height:1.25;margin:.2rem 0}
+  .h2{display:inline-block;font-size:1.15rem;font-weight:700;margin:.15rem 0}
+  code.ic{background:var(--surface3);border-radius:4px;padding:0 .3rem;font-size:.85em;font-family:ui-monospace,Menlo,Consolas,monospace}
+  /* piece 2 (John 11): Threads / Other tabs, messages from a person */
+  .tabs{display:flex;gap:.3rem;padding:.55rem .8rem 0}
+  .tabs a{flex:1;text-align:center;padding:.35rem .5rem;border:1px solid var(--border);border-radius:6px;font-size:.8rem;color:var(--muted);cursor:pointer}
+  .tabs a.on{color:var(--text);border-color:var(--accent);background:var(--surface2)}
+  .msg .msg-bubble.from-note{border:2px solid var(--ok)}
+  .note-tag{font-size:.7rem;font-weight:700;color:var(--ok);letter-spacing:.06em;margin-bottom:.35rem;text-transform:uppercase}
+  .msg-avatar.note-av{background:var(--ok);color:#000;font-weight:700}
+  .sidebar.closed,.rightbar.closed{display:none}
+  @media (max-width:800px){
+    .sidebar,.rightbar{position:fixed;top:52px;bottom:0;z-index:50;width:85vw;max-width:340px;box-shadow:0 0 24px rgba(0,0,0,.6)}
+    .sidebar{left:0}.rightbar{right:0}
+    .model-bar #loaded-note{display:none}
+  }
+</style>
+</head>
+<body>
+
+<div class='topbar'>
+  <a href='/'>&#8592; Nexus</a>
+  <span class='sep'>&middot;</span>
+  <span class='title'>BotCouncil</span>
+  <a class='back-btn' href='/'>&#8592; Admin Home</a>
+</div>
+
+<div id='app'>
+  <div class='sidebar' id='left-panel'>
+    <div class='searchbox'>
+      <input id='search-input' placeholder='Search past conversations...'>
+      <div class='row'>
+        <button class='sbtn' onclick='doFind()' title='Find this exact text in every saved conversation'>Find text</button>
+        <button class='sbtn ask' onclick='doAsk()' title='Ask the assistant a question about your past conversations'>Ask assistant</button>
+      </div>
+    </div>
+    <div class='tabs'><a id='tab-threads' class='on' onclick="setTab('threads')" title='Sessions in the current thread'>Threads</a><a id='tab-other' onclick="setTab('other')" title='Talks not tied to a thread'>Other</a></div>
+    <div class='sidebar-header'>
+      <span id='sessions-label'>Sessions</span>
+      <span><a onclick='newMenu(event)' title='New: a session in this thread, or an Other talk' style='color:var(--muted);font-size:.8rem;cursor:pointer'>New &#9662;</a> <a onclick="togglePanel('left', false)" title='Fold away' style='color:var(--muted);font-size:.9rem;cursor:pointer;margin-left:.6rem'>&lt;&lt;</a></span>
+    </div>
+    <div id='results-bar' class='results-bar' style='display:none'></div>
+    <div class='conv-list' id='conv-list' onclick='handleConvClick(event)'>
+      <div class='conv-empty'>Loading...</div>
+    </div>
+  </div>
+
+  <div class='chat-area'>
+    <div class='model-bar'>
+      <button class='panel-btn' id='left-btn' onclick='togglePanel("left")' title='Fold away or bring back sessions and search'>&lt;&lt; Sessions</button>
+      <span class='thread-label' id='thread-label'>Thread</span>
+      <span id='loaded-note'></span>
+      <span class='chip' id='key-chip' title='Money left on the AI key this window uses'>Key: checking...</span>
+      <button class='handoff-btn' id='handoff-btn' style='display:none' onclick='jumpHandoff()' title='Jumps to the newest handoff prompt; each click after that moves up to the one before it'>&#9733; Jump to handoff</button>
+      <span class='chip idle' id='idle-chip' style='display:none' title='No activity for 10 minutes, so the window stopped checking the server'>Idle &middot; move or click to wake</span>
+      <button class='model-btn' id='web-btn' data-on='1' onclick='toggleWeb(this)'>Web: ON</button>
+      <button class='panel-btn' id='right-btn' style='margin-left:auto' onclick='togglePanel("right")' title='Fold away or bring back your threads'>Threads &gt;&gt;</button>
+    </div>
+    <div class='messages' id='messages'></div>
+    <div class='input-bar'>
+      <textarea id='msg-input' placeholder='Message... (Enter to send, Shift+Enter for newline)' rows='1'></textarea>
+      <button class='send-btn' id='send-btn' onclick='sendMessage()'>&#x27A4;</button>
+    </div>
+  </div>
+
+  <div class='rightbar' id='right-panel'>
+    <div class='sidebar-header'><span class='your-threads'>Your Threads:</span><span><a id='fold-all' onclick='foldAll()' title='Fold or open every thread box below' style='color:var(--muted);font-size:.8rem;cursor:pointer'>Collapse all</a><a onclick="togglePanel('right', false)" title='Fold away' style='color:var(--muted);font-size:.9rem;cursor:pointer;margin-left:.7rem'>&gt;&gt;</a></span></div>
+    <div class='thread-list' id='thread-list'><div class='conv-empty'>Loading...</div></div>
+  </div>
+</div>
+
+<script>
+const MODEL = 'deepseek/deepseek-v4-pro-0813';
+const STOP = new Set(('the and for are but not you all any can had her was one our out day get has him his how man new now old see two way who boy did its let put say she too use that with have this will your from they know want been good much some time very when come here just like long make many over such take than them well were what where which while would there their about could should these those into only also then more most other after before because does done did when why how did tony said says thing things').split(' '));
+const COUNCIL_HOURS = 24;          // how long thread-to-thread messages stay in the boxes
+const POLL_BUSY = 4000, POLL_IDLE = 30000;
+const IDLE_MS = 10 * 60 * 1000;    // no activity for this long: stop checking the server (Tony, 5 Oct 2026)
+const PENDING_LOST_MS = 20 * 60 * 1000;
+// a handoff prompt: a line starting "HANDOFF PROMPT -" (same rule the server uses for CLOSED lines)
+const HANDOFF_RE = /^[#\s>*`]*HANDOFF PROMPT\s*-/m;
+function hasHandoff(s) { return HANDOFF_RE.test(s || ''); }
+const ASK_RE = /^[ \t]*===[ \t]*ASK THREADS?[ \t]*:[ \t]*([A-Za-z0-9]+)[ \t]*===[ \t]*\n([\s\S]*?)\n[ \t]*===[ \t]*END[ \t]*===[ \t]*$/gim;
+
+// The login is kept on this device for its 24 hours (not only in this tab), so a
+// new tab or a phone that reloads the page does not ask again.
+const SPACE = (new URLSearchParams(location.search).get('space') || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 40);
+let adminToken = (SPACE && localStorage.getItem('bc_space_' + SPACE)) || sessionStorage.getItem('np_admin_token') || localStorage.getItem('bc_admin_token');
+try {
+  if (adminToken && adminToken.slice(0, 2) !== 'sp') { sessionStorage.setItem('np_admin_token', adminToken); localStorage.setItem('bc_admin_token', adminToken); }
+} catch (e) {}
+let convIndex     = [];
+let threads       = [];
+let currentThread = null;
+let activeConv    = null;
+let mode          = 'sessions';   // 'sessions' or 'results'
+let results       = [];
+let council       = [];           // thread-to-thread messages, from the server's council log
+let threadsSig = '', councilSig = '', pollTimer = null;
+let sending = false, sendingId = '', lastActivity = Date.now(), idle = false, pendingWatch = null;
+let hiddenUntil = {};
+try { hiddenUntil = JSON.parse(localStorage.getItem('bc_council_hidden') || '{}'); } catch (e) { hiddenUntil = {}; }
+let folded = {};
+try { folded = JSON.parse(localStorage.getItem('bc_folded') || '{}'); } catch (e) { folded = {}; }
+// Full thread names shown in the window. A thread not listed shows its short name.
+const FULL_NAMES = {BC: 'The botcouncil system', JOBS: 'Job search', JOHN: 'Onboarding John',
+  NEXUS: 'The Nexus', NPA: 'Needpedia phone app', PC: 'Public Coms', PU: 'Project Unstoppable',
+  TS: 'Test sites'};
+function fullName(n) { const t = threads.find(x => x.name === n); return (t && t.full) || FULL_NAMES[n] || n; }
+
+// Sends Tony to the Nexus login, remembering which session link he was opening,
+// so that after logging in and clicking the BotCouncil tile he lands back on it.
+function goLogin() {
+  if (SPACE) { spaceLogin(); return; }
+  try {
+    localStorage.removeItem('bc_admin_token');
+    sessionStorage.removeItem('np_admin_token');
+    if (location.search) localStorage.setItem('bc_return', JSON.stringify({q: location.search, t: Date.now()}));
+  } catch (e) {}
+  window.location.href = '/';
+}
+
+function toggleWeb(b){ b.dataset.on = (b.dataset.on === '1') ? '0' : '1'; b.textContent = 'Web: ' + (b.dataset.on === '1' ? 'ON' : 'OFF'); }
+function webIsOn(){ const b = document.getElementById('web-btn'); return !!b && b.dataset.on === '1'; }
+
+// ---- side panels: fold away; on a phone they start closed and float over the chat ----
+function isPhone() { return window.matchMedia('(max-width:800px)').matches; }
+function togglePanel(side, force) {
+  const el = document.getElementById(side === 'left' ? 'left-panel' : 'right-panel');
+  const open = (force === undefined) ? el.classList.contains('closed') : force;
+  el.classList.toggle('closed', !open);
+  if (open && isPhone()) togglePanel(side === 'left' ? 'right' : 'left', false);
+  updatePanelBtns();
+}
+function closePanelsOnPhone() { if (isPhone()) { togglePanel('left', false); togglePanel('right', false); } }
+function updatePanelBtns() {
+  const l = document.getElementById('left-panel'), r = document.getElementById('right-panel');
+  const lb = document.getElementById('left-btn'), rb = document.getElementById('right-btn');
+  if (lb) lb.textContent = l.classList.contains('closed') ? '>> Sessions' : '<< Sessions';
+  if (rb) rb.textContent = r.classList.contains('closed') ? 'Threads <<' : 'Threads >>';
+}
+
+// ---- idle after 10 minutes with no activity; any movement wakes it ----
+function noteActivity() {
+  lastActivity = Date.now();
+  if (idle) { idle = false; document.getElementById('idle-chip').style.display = 'none'; loadCouncil(); loadKey(); }
+}
+['mousemove', 'keydown', 'click', 'touchstart', 'scroll', 'focus'].forEach(ev => window.addEventListener(ev, noteActivity, {passive: true, capture: true}));
+document.addEventListener('visibilitychange', () => { if (!document.hidden) noteActivity(); });
+function goIdle() { idle = true; clearTimeout(pollTimer); document.getElementById('idle-chip').style.display = ''; }
+
+window.addEventListener('DOMContentLoaded', async () => {
+  if (!adminToken) { goLogin(); return; }
+  // back from the login page: carry on to the session link that sent Tony there
+  try {
+    const ret = JSON.parse(localStorage.getItem('bc_return') || 'null');
+    localStorage.removeItem('bc_return');
+    if (ret && !location.search && Date.now() - ret.t < 15 * 60 * 1000 && /^\?[A-Za-z0-9_=&\-]+$/.test(ret.q)) history.replaceState(null, '', location.pathname + ret.q);
+  } catch (e) {}
+  closePanelsOnPhone();
+  if (SPACE) { togglePanel('right', false); const ab = document.querySelector('.back-btn'); if (ab) ab.style.display = 'none'; }
+  document.getElementById('messages').addEventListener('click', closePanelsOnPhone);
+  const ta = document.getElementById('msg-input');
+  ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+  ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 160) + 'px'; });
+  document.getElementById('search-input').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doFind(); } });
+  await loadThreads();
+  await loadConvIndex();
+  // a link like botcouncil.html?thread=JOHN&session=bc_123 opens that session
+  const qp = new URLSearchParams(location.search);
+  const wantT = (qp.get('thread') || '').toUpperCase(), wantS = qp.get('session') || '';
+  if (wantT && threads.find(t => t.name === wantT)) {
+    await selectThread(wantT, true);
+    if (wantS && convIndex.find(c => c.id === wantS)) await loadConv(wantS);
+  } else if (threads.length) selectThread(threads.slice().sort((a, b) => (b.last || '').localeCompare(a.last || ''))[0].name, true);
+  loadCouncil();
+  loadKey();
+});
+
+async function ops(action, extra) {
+  const r = await fetch('/admin-ops', {method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-Admin-Token': adminToken},
+    body: JSON.stringify(Object.assign({action: action, space: SPACE}, extra || {}))});
+  if (r.status === 401 || r.status === 403) { goLogin(); return null; }
+  return r.json();
+}
+
+// ---- money left on the AI key ----
+async function loadKey() {
+  const el = document.getElementById('key-chip');
+  try {
+    const d = await ops('bc-key');
+    if (!d || d.error || typeof d.left !== 'number') { el.textContent = 'Key: money left unknown'; el.classList.remove('low'); return; }
+    el.textContent = 'Key: $' + d.left.toFixed(2) + ' left' + (typeof d.limit === 'number' ? ' of $' + d.limit.toFixed(0) : '');
+    el.classList.toggle('low', d.left < 1);
+  } catch (e) { el.textContent = 'Key: money left unknown'; }
+}
+
+async function loadThreads() {
+  const d = await ops('bc-threads');
+  threads = (d && d.threads) || [];
+  threadsSig = JSON.stringify(threads);
+  renderThreads();
+}
+
+// ---- council: thread-to-thread messages ----
+async function loadCouncil() {
+  if (idle) return;
+  try {
+    const d = await ops('bc-council');
+    if (d && d.council) {
+      council = d.council;
+      const sig = JSON.stringify(council);
+      if (sig !== councilSig) { councilSig = sig; renderThreads(); }
+    }
+    const t = await ops('bc-threads');
+    if (t && t.threads) {
+      const sig = JSON.stringify(t.threads);
+      if (sig !== threadsSig) { threads = t.threads; threadsSig = sig; renderThreads(); }
+    }
+  } catch (e) { /* try again on the next round */ }
+  clearTimeout(pollTimer);
+  if (!councilBusy() && !sending && Date.now() - lastActivity > IDLE_MS) { goIdle(); return; }
+  pollTimer = setTimeout(loadCouncil, councilBusy() ? POLL_BUSY : POLL_IDLE);
+}
+
+function isWorking(b, r) {
+  return r && r.status === 'working' && (Date.now() - Date.parse(b.ts)) < 15 * 60 * 1000;
+}
+function councilBusy() {
+  return council.some(b => Object.values(b.replies || {}).some(r => isWorking(b, r)));
+}
+
+function councilFor(name) {
+  const cutoff = Date.now() - COUNCIL_HOURS * 3600 * 1000;
+  const hid = hiddenUntil[name] ? Date.parse(hiddenUntil[name]) : 0;
+  const ev = [];
+  for (const b of council) {
+    const t = Date.parse(b.ts);
+    if (!(t > cutoff) || t <= hid) continue;
+    if (b.from === name) ev.push({kind: 'sent', b: b});
+    if ((b.to || []).includes(name)) ev.push({kind: 'got', b: b, r: (b.replies || {})[name] || {}});
+  }
+  return ev;
+}
+
+function fmtTime(iso) { try { return new Date(iso).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'}); } catch (e) { return ''; } }
+function fmtCost(c) { return (typeof c === 'number') ? ' · $' + c.toFixed(c < 0.01 ? 4 : 2) : ''; }
+
+function councilHtml(name, ev) {
+  return ev.map(e => {
+    const b = e.b;
+    const isAsk = b.kind === 'ask';
+    const isNews = b.kind === 'post' || (!isAsk && !Object.keys(b.replies || {}).length);
+    if (e.kind === 'sent') {
+      const reps = Object.values(b.replies || {});
+      const done = reps.filter(r => r.status === 'done').length;
+      const errs = reps.filter(r => r.status === 'error').length;
+      const busy = reps.filter(r => isWorking(b, r)).length;
+      const cost = reps.reduce((s, r) => s + (typeof r.cost === 'number' ? r.cost : 0), 0);
+      const toLabel = (b.to || []).length > 3 ? 'ALL (' + b.to.length + ' threads)' : (b.to || []).join(', ');
+      const head = isAsk ? '&#8594; asked ' : '&#8594; news for ';
+      const sum = isNews ? 'left in ' + (b.to || []).length + ' updates post' + ((b.to || []).length === 1 ? '' : 's')
+        : (done + ' answered' + (busy ? ', ' + busy + ' thinking' : '') + (errs ? ', ' + errs + ' failed' : '') + (cost ? ' · $' + cost.toFixed(cost < 0.01 ? 4 : 2) : ''));
+      return '<div class="cev"><span class="who sent">' + head + escHtml(toLabel) + '</span> <span class="when">' + fmtTime(b.ts) + '</span>\n' +
+        escHtml(b.text) + '\n<span class="sum">' + sum + '</span>' +
+        Object.entries(b.delivered || {}).filter(([n, v]) => v !== 'posted').map(([n, v]) =>
+          '\n<span class="sum">' + escHtml(n) + ': ' + escHtml(v) + '</span>').join('') + '</div>';
+    }
+    const r = e.r;
+    const head = isAsk ? '&#8592; asked by ' : '&#8592; news from ';
+    if (isNews) {
+      return '<div class="cev"><span class="who got">' + head + escHtml(b.from) + '</span> <span class="when">' + fmtTime(b.ts) + '</span>\n' +
+        escHtml(b.text) + '\n<div class="reply quiet">waiting in its updates post</div></div>';
+    }
+    const cls = isWorking(b, r) ? 'working' : (r.status === 'error' ? 'error' : (r.status === 'working' ? 'error' : ''));
+    const txt = isWorking(b, r) ? 'thinking...' : (r.status === 'working' ? 'no answer (stopped)' : (r.reply || ''));
+    return '<div class="cev"><span class="who got">' + head + escHtml(b.from) + '</span> <span class="when">' + fmtTime(b.ts) + '</span>\n' +
+      escHtml(b.text) + '\n<div class="reply ' + cls + '">' + escHtml(txt) + (cls ? '' : '<span class="when">' + fmtCost(r.cost) + '</span>') + '</div></div>';
+  }).join('');
+}
+
+function renderThreads() {
+  const el = document.getElementById('thread-list');
+  if (!threads.length) { el.innerHTML = '<div class="conv-empty">No threads found</div>'; return; }
+  const sl = document.getElementById('sessions-label');
+  const ct = threads.find(x => x.name === currentThread);
+  if (sl && tab === 'other') sl.innerHTML = '<b>Other talks</b><br>Not tied to a thread';
+  else if (sl && currentThread) sl.innerHTML = '<b>' + escHtml(fullName(currentThread)) + '</b><br>Session: ' + (ct ? ct.sessions : 0);
+  // keep each box's scroll place; stay at the bottom if it was at the bottom
+  const keep = {};
+  el.querySelectorAll('.council').forEach(c => {
+    keep[c.dataset.thread] = {top: c.scrollTop, bottom: c.scrollTop + c.clientHeight >= c.scrollHeight - 8};
+  });
+  const listTop = el.scrollTop;
+  el.innerHTML = threads.map(t => {
+    const ev = councilFor(t.name);
+    const busy = ev.some(e => (e.kind === 'got' && isWorking(e.b, e.r)) || (e.kind === 'sent' && Object.values(e.b.replies || {}).some(r => isWorking(e.b, r))));
+    return '<div class="thread-item' + (t.name === currentThread ? ' active' : '') + (ev.length ? ' talking' : '') + (busy ? ' busy' : '') +
+      '" onclick="selectThread(\'' + t.name + '\')">' +
+      '<div class="thread-name">' + escHtml(fullName(t.name)) + ' <span class="code">' + escHtml(t.name) + '</span>' + (t.pinned ? ' <span class="pin">&#x1F4CC;</span>' : '') +
+      (t.unread ? ' <span class="badge" title="Messages from other threads that this thread has not archived yet. Click to read them." onclick="event.stopPropagation();showUnread(\'' + t.name + '\')">' +
+        t.unread + ' thread update' + (t.unread === 1 ? '' : 's') + '</span>' : '') +
+      (ev.length ? '<span class="fold" title="Fold or open this thread\'s messages" onclick="event.stopPropagation();toggleFold(\'' + t.name + '\')">' + (folded[t.name] ? '&#9656;' : '&#9662;') + '</span>' : '') + '</div>' +
+      '<div class="conv-meta">Session: ' + t.sessions +
+      (t.last ? ' &middot; ' + fmtDate(t.last) : '') + '</div>' +
+      ((ev.length && !folded[t.name]) ? '<div class="council" data-thread="' + t.name + '">' + councilHtml(t.name, ev) +
+        '</div>' : '') +
+      '</div>';
+  }).join('');
+  el.scrollTop = listTop;
+  const fa = document.getElementById('fold-all');
+  if (fa) fa.textContent = threads.every(t => folded[t.name]) ? 'Open all' : 'Collapse all';
+  el.querySelectorAll('.council').forEach(c => {
+    const k = keep[c.dataset.thread];
+    c.scrollTop = (!k || k.bottom) ? c.scrollHeight : k.top;
+  });
+}
+
+// Collapse all / Open all, above the threads (JOHN thread, session John 11)
+function foldAll() {
+  const allFolded = threads.length && threads.every(t => folded[t.name]);
+  threads.forEach(t => { folded[t.name] = !allFolded; });
+  try { localStorage.setItem('bc_folded', JSON.stringify(folded)); } catch (e) {}
+  renderThreads();
+}
+
+function toggleFold(name) {
+  folded[name] = !folded[name];
+  try { localStorage.setItem('bc_folded', JSON.stringify(folded)); } catch (e) {}
+  renderThreads();
+}
+
+function hideCouncil(name) {
+  hiddenUntil[name] = new Date().toISOString();
+  try { localStorage.setItem('bc_council_hidden', JSON.stringify(hiddenUntil)); } catch (e) {}
+  renderThreads();
+}
+
+async function showUnread(name) {
+  closePanelsOnPhone();
+  const d = await ops('bc-unread', {name: name});
+  const box = document.getElementById('messages');
+  const text = (d && d.text) || '(none)';
+  box.innerHTML = '<div class="unread-view"><h3>Thread updates for ' + escHtml(name) + '</h3>' +
+    '<div class="note">Messages other threads left for ' + escHtml(name) + ' that it has not archived yet. Its AI reads them with every message in this window; they move to its archive when that thread clears them.</div>' +
+    '<pre>' + escHtml(text) + '</pre><p style="margin-top:.8rem"><a onclick="renderMessages()">&#8592; back to the chat</a></p></div>';
+  box.scrollTop = 0;
+}
+
+async function loadConvIndex() {
+  const r = await fetch('/admin-convs' + (SPACE ? '?space=' + SPACE : ''), {headers: {'X-Admin-Token': adminToken}});
+  if (r.status === 401 || r.status === 403) { goLogin(); return; }
+  convIndex = await r.json();
+}
+
+function threadSessions() { return convIndex.filter(c => tab === 'other' ? !c.thread : c.thread === currentThread); }
+
+async function selectThread(name, keepOpen) {
+  currentThread = name;
+  tab = 'threads'; markTabs();
+  if (!keepOpen) closePanelsOnPhone();
+  mode = 'sessions';
+  document.getElementById('results-bar').style.display = 'none';
+  document.getElementById('sessions-label').textContent = 'Sessions · ' + name;
+  document.getElementById('thread-label').textContent = fullName(name);
+  const t = threads.find(x => x.name === name);
+  document.getElementById('loaded-note').textContent = t ?
+    (SPACE ? 'Loaded fresh with every message: How to help me, this thread\'s notes, ' : 'Loaded fresh with every message: botskill post, PA-' + name + ', ') + t.unread + ' thread update' + (t.unread === 1 ? '' : 's') : '';
+  renderThreads();
+  const s = threadSessions();
+  activeConv = null;
+  if (s.length) await loadConv(s[0].id); else { renderConvList(); renderMessages(); }
+}
+
+function renderConvList() {
+  const el = document.getElementById('conv-list');
+  if (mode === 'results') {
+    if (!results.length) { el.innerHTML = '<div class="conv-empty">Nothing found</div>'; return; }
+    el.innerHTML = results.map(c =>
+      '<div class="conv-item" data-conv-id="' + c.id + '">' +
+      '<div class="conv-title">' + escHtml(c.title || 'Untitled') + '</div>' +
+      '<div class="conv-meta">' + escHtml(c.thread || 'no thread') + ' &middot; ' + fmtDate(c.updated_at) + '</div>' +
+      (c.snippets || []).map(s => '<div class="conv-snip">' + markSnip(s) + '</div>').join('') +
+      '</div>').join('');
+    return;
+  }
+  const s = threadSessions();
+  if (!s.length && tab === 'other') { el.innerHTML = '<div class="conv-empty">No other talks yet.<br>New, then Other, starts one.</div>'; return; }
+  if (!s.length) { el.innerHTML = '<div class="conv-empty">No sessions in ' + escHtml(currentThread || '') + ' yet.<br>Type a message to start one.</div>'; return; }
+  el.innerHTML = s.map(c =>
+    '<div class="conv-item' + (activeConv && c.id === activeConv.id ? ' active' : '') + '" data-conv-id="' + c.id + '">' +
+    '<div class="conv-row"><div class="conv-title">' + escHtml(c.title || 'Untitled') + '</div>' +
+    '<span class="conv-menu-btn" data-act="menu">&#8943;</span></div>' +
+    '<div class="conv-meta">' + fmtDate(c.updated_at) + '</div></div>').join('');
+}
+
+function closeConvMenu() { const m = document.getElementById('conv-menu-popup'); if (m) m.remove(); }
+function openConvMenu(id, x, y) {
+  closeConvMenu();
+  const menu = document.createElement('div');
+  menu.className = 'conv-menu'; menu.id = 'conv-menu-popup';
+  menu.style.left = x + 'px'; menu.style.top = y + 'px';
+  const rename = document.createElement('div'); rename.textContent = 'Rename';
+  rename.onclick = ev => { ev.stopPropagation(); closeConvMenu(); renameConv(id); };
+  const close = document.createElement('div'); close.textContent = 'Mark session closed';
+  close.title = 'Takes this session\'s open-session note back out of the thread\'s updates post';
+  close.onclick = ev => { ev.stopPropagation(); closeConvMenu(); closeSession(id); };
+  const del = document.createElement('div'); del.textContent = 'Delete';
+  del.onclick = ev => { ev.stopPropagation(); closeConvMenu(); deleteConv(id); };
+  menu.appendChild(rename); if (!SPACE) menu.appendChild(close); menu.appendChild(del);
+  document.body.appendChild(menu);
+}
+document.addEventListener('click', e => { if (!e.target.closest('.conv-menu') && !e.target.closest('.conv-menu-btn')) closeConvMenu(); });
+
+async function closeSession(id) {
+  const d = await ops('bc-close-session', {session: id});
+  alert('Session: ' + ((d && d.status) || 'no answer from the server'));
+}
+
+function handleConvClick(e) {
+  const item = e.target.closest('.conv-item');
+  if (!item || !item.dataset.convId) return;
+  const btn = e.target.closest('.conv-menu-btn');
+  if (btn) { e.stopPropagation(); const r = btn.getBoundingClientRect(); openConvMenu(item.dataset.convId, r.left - 40, r.bottom + 4); return; }
+  closePanelsOnPhone();
+  loadConv(item.dataset.convId);
+}
+
+async function deleteConv(id) {
+  const c = convIndex.find(x => x.id === id);
+  if (!confirm('Delete "' + (c ? c.title : id) + '"? This cannot be undone.')) return;
+  await fetch('/admin-conv-delete', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-Admin-Token': adminToken}, body: JSON.stringify({id: id, space: SPACE})});
+  await loadConvIndex(); await loadThreads();
+  if (activeConv && activeConv.id === id) activeConv = null;
+  renderConvList(); renderMessages();
+}
+
+async function renameConv(id) {
+  const c = convIndex.find(x => x.id === id);
+  const t = prompt('New title:', c ? c.title : '');
+  if (!t || !t.trim()) return;
+  await fetch('/admin-conv-rename', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-Admin-Token': adminToken}, body: JSON.stringify({id: id, title: t.trim(), space: SPACE})});
+  if (c) c.title = t.trim();
+  if (activeConv && activeConv.id === id) activeConv.title = t.trim();
+  renderConvList();
+}
+
+async function loadConv(id) {
+  const r = await fetch('/admin-conv?id=' + encodeURIComponent(id) + (SPACE ? '&space=' + SPACE : ''), {headers: {'X-Admin-Token': adminToken}});
+  if (r.status === 401 || r.status === 403) { goLogin(); return; }
+  if (!r.ok) return;
+  activeConv = await r.json();
+  renderConvList(); renderMessages();
+  if (activeConv.pending && activeConv.id !== sendingId) watchPending(activeConv.id);
+}
+
+async function saveConv(conv) {
+  conv = conv || activeConv;
+  if (!conv) return;
+  conv.model = MODEL;
+  await fetch('/admin-convs', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-Admin-Token': adminToken},
+    body: JSON.stringify({conversation: conv, space: SPACE})});
+  await loadConvIndex();
+  await loadThreads();
+  renderConvList();
+}
+
+function newChat() {
+  closePanelsOnPhone();
+  mode = 'sessions';
+  document.getElementById('results-bar').style.display = 'none';
+  activeConv = {id: 'bc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+                title: 'New session', model: MODEL, thread: (tab === 'other' ? '' : currentThread), messages: []};
+  renderConvList(); renderMessages();
+  document.getElementById('msg-input').focus();
+}
+
+// ---- an answer still being written when the session was opened ----
+async function watchPending(id) {
+  if (pendingWatch === id) return;
+  pendingWatch = id;
+  try {
+    while (activeConv && activeConv.id === id && activeConv.pending) {
+      await new Promise(res => setTimeout(res, 4000));
+      if (!activeConv || activeConv.id !== id) break;
+      const p = activeConv.pending;
+      const d = p.job ? await ops('bc-job', {id: p.job}) : null;
+      const old = Date.now() - Date.parse(p.since) > PENDING_LOST_MS;
+      if (d && d.status === 'done') { await loadConvIndex(); await loadConv(id); break; }
+      if ((d && d.status === 'missing') || old) {
+        // the server restarted while the AI was thinking: the answer is gone
+        activeConv.pending = null;
+        activeConv.messages.push({role: 'assistant', content: '[The answer was lost: the server restarted while the AI was thinking. Send your message again.]'});
+        await saveConv(); renderMessages(); break;
+      }
+    }
+  } finally { if (pendingWatch === id) pendingWatch = null; }
+}
+
+// ---- live questions to other threads: a box with Send and Skip ----
+function askBlocks(text) {
+  const out = []; let m; ASK_RE.lastIndex = 0;
+  while ((m = ASK_RE.exec(text)) !== null) out.push({start: m.index, end: m.index + m[0].length, name: m[1].toUpperCase(), q: m[2].trim()});
+  return out;
+}
+
+function assistantHtml(m, mi) {
+  const text = m.content || '';
+  const blocks = askBlocks(text);
+  let h = '', pos = 0;
+  blocks.forEach((b, k) => {
+    h += fmtText(text.slice(pos, b.start));
+    const st = (m.asks || {})[k];
+    let btns;
+    if (!st) btns = (activeConv && activeConv.pending) ? 'wait for the answer to finish' :
+      '<button class="send" onclick="askSend(' + mi + ',' + k + ')">Send</button><button onclick="askSkip(' + mi + ',' + k + ')">Skip</button>';
+    else if (st === 'sending') btns = 'asking ' + escHtml(b.name) + '... the answer will appear below';
+    else btns = escHtml(st);
+    h += '<div class="ask-box"><div class="ask-head">Ask the ' + escHtml(b.name) + ' thread now?</div>' + escHtml(b.q) + '<div class="ask-btns">' + btns + '</div></div>';
+    pos = b.end;
+  });
+  h += fmtText(text.slice(pos));
+  const meta = [];
+  if (typeof m.cost === 'number') meta.push('$' + m.cost.toFixed(m.cost < 0.01 ? 4 : 2));
+  if (typeof m.cached_pct === 'number') meta.push(m.cached_pct + '% at the repeat discount');
+  if (meta.length) h += '<div class="msg-meta">' + meta.join(' · ') + '</div>';
+  return h;
+}
+
+async function askSend(mi, k) {
+  const conv = activeConv;
+  if (!conv) return;
+  const m = conv.messages[mi];
+  const b = askBlocks(m.content || '')[k];
+  if (!b || (m.asks || {})[k]) return;
+  m.asks = m.asks || {}; m.asks[k] = 'sending'; renderMessages();
+  const d = await ops('bc-ask', {from: conv.thread || currentThread, to: b.name, question: b.q, session: conv.id});
+  if (!d || d.error || !d.id) {
+    m.asks[k] = 'not sent: ' + ((d && d.error) || 'no answer from the server');
+    await saveConv(conv); if (activeConv === conv) renderMessages(); return;
+  }
+  loadCouncil();
+  const start = Date.now(); let rep = null;
+  while (Date.now() - start < 15 * 60 * 1000) {
+    await new Promise(res => setTimeout(res, 3000));
+    const c = await ops('bc-council');
+    const e = c && (c.council || []).find(x => x.id === d.id);
+    const r = e && (e.replies || {})[b.name];
+    if (r && r.status !== 'working') { rep = r; break; }
+  }
+  if (!rep) rep = {status: 'error', reply: 'No answer after 15 minutes.'};
+  m.asks[k] = rep.status === 'done' ? 'answered below' : 'failed: see below';
+  conv.messages.push({role: 'user', kind: 'answer', from: b.name, cost: rep.cost,
+    content: '[Answer from the ' + b.name + ' thread to your live question]\n' + (rep.reply || '')});
+  await saveConv(conv);
+  if (activeConv === conv) renderMessages();
+  loadCouncil();
+}
+
+async function askSkip(mi, k) {
+  const m = activeConv && activeConv.messages[mi];
+  if (!m) return;
+  m.asks = m.asks || {}; m.asks[k] = 'skipped';
+  await saveConv(); renderMessages();
+}
+
+function renderMessages(extraHtml) {
+  const box = document.getElementById('messages');
+  document.getElementById('send-btn').disabled = sending || !!(activeConv && activeConv.pending);
+  const hoBtn = document.getElementById('handoff-btn');
+  const hoN = activeConv ? (activeConv.messages || []).filter(m => m.kind !== 'answer' && hasHandoff(m.content)).length : 0;
+  if (hoBtn) { hoBtn.style.display = hoN ? '' : 'none'; hoBtn.textContent = '\u2605 Jump to handoff' + (hoN > 1 ? ' (' + hoN + ')' : ''); }
+  hoStep = -1;
+  if (!activeConv || !activeConv.messages.length) {
+    box.innerHTML = '<div class="empty-state"><div class="big">&#x1F3DB;</div><p>' +
+      (tab === 'other' ? 'New other talk: not tied to a thread. The AI still knows ' + (SPACE ? 'your How to help me' : 'your botskill post') + '. Just start talking.' : currentThread && SPACE ? 'New session in ' + escHtml(fullName(currentThread)) + '. It already knows this thread\'s notes and your How to help me. Just start talking.' : currentThread ? 'New ' + escHtml(currentThread) + ' session. It already has the botskill post, this thread\'s prompt accomplice and its unread updates. Just start talking.' : 'Pick a thread on the right.') +
+      '</p></div>';
+    return;
+  }
+  box.innerHTML = activeConv.messages.map((m, i) => {
+    if (m.kind === 'hidden') return '';
+    if (m.kind === 'note') return '<div class="msg assistant"><div class="msg-avatar note-av">' + escHtml((m.from || '?').slice(0, 1)) + '</div><div class="msg-bubble from-note"><div class="note-tag">From ' + escHtml(m.from || 'the person who set this up') + '</div>' + fmtText(m.content) + '</div></div>';
+    if (m.kind === 'answer') {
+      return '<div class="msg assistant"><div class="msg-avatar">&#x21A9;</div><div class="msg-bubble answer">' + escHtml(m.content) +
+        (typeof m.cost === 'number' ? '<div class="msg-meta">$' + m.cost.toFixed(m.cost < 0.01 ? 4 : 2) + '</div>' : '') + '</div></div>';
+    }
+    return '<div class="msg ' + m.role + '"><div class="msg-avatar">' + (m.role === 'user' ? '&#x1F464;' : '&#x1F535;') + '</div>' +
+      '<div class="msg-bubble' + (hasHandoff(m.content) ? ' handoff' : '') + '">' +
+      (hasHandoff(m.content) ? '<div class="handoff-tag">&#9733; HANDOFF PROMPT</div>' : '') +
+      (m.role === 'assistant' ? assistantHtml(m, i) : escHtml(m.content)) + '</div></div>';
+  }).join('') +
+    ((sending && activeConv.id === sendingId) ? '<div class="msg assistant"><div class="msg-avatar">&#x1F535;</div><div class="msg-bubble thinking" id="spin-bubble">Thinking...</div></div>' :
+     activeConv.pending ? '<div class="msg assistant"><div class="msg-avatar">&#x1F535;</div><div class="msg-bubble thinking">Still thinking (started ' +
+      fmtTime(activeConv.pending.since) + '). The answer saves itself; you can leave and come back.</div></div>' : '') +
+    (extraHtml || '');
+  box.scrollTop = box.scrollHeight;
+}
+
+// ---- jump between handoff prompts like Ctrl+F: newest first, then up ----
+var hoStep = -1;
+function jumpHandoff() {
+  let all = document.querySelectorAll('#messages .msg-bubble.handoff');
+  if (!all.length) { renderMessages(); all = document.querySelectorAll('#messages .msg-bubble.handoff'); }
+  if (!all.length) return;
+  hoStep = (hoStep + 1) % all.length;
+  const pos = all.length - hoStep;            // its place counted from the top, like Ctrl+F
+  const el = all[pos - 1];
+  el.scrollIntoView({behavior: 'smooth', block: 'start'});
+  el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+  const b = document.getElementById('handoff-btn');
+  if (b && all.length > 1) b.textContent = '\u2605 Handoff ' + pos + ' of ' + all.length + ' \u2191';
+}
+
+async function sendMessage(auto) {
+  const input = document.getElementById('msg-input');
+  const text = (typeof auto === 'string') ? auto : input.value.trim();
+  if (!text || sending || (activeConv && activeConv.pending)) return;
+  if (!activeConv) newChat();
+  const conv = activeConv;
+  conv.messages.push((typeof auto === 'string') ? {role: 'user', kind: 'hidden', content: text} : {role: 'user', content: text});
+  if (conv.title === 'New session') conv.title = (conv.thread ? conv.thread + ' · ' : '') + text.slice(0, 50);
+  if (typeof auto !== 'string') { input.value = ''; input.style.height = 'auto'; }
+  sending = true; sendingId = conv.id;
+  renderMessages();
+  let sentToThreads = false, saved = false, spaceText = '';
+  try {
+    const r = await fetch('/admin-chat-proxy', {method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-Admin-Token': adminToken},
+      body: JSON.stringify({model: MODEL, thread: conv.thread || '', web: webIsOn(), async: true, session: conv.id, title: conv.title, space: SPACE, other: !conv.thread,
+        messages: conv.messages.map(m => (SPACE && m.kind) ? {role: m.role, content: m.content, kind: m.kind} : {role: m.role, content: m.content})})});
+    if (r.status === 401) { sending = false; sendingId = ''; goLogin(); return; }
+    let data = await r.json();
+    if (data.job) data = await waitForJob(data.job);
+    sentToThreads = !!(data.botcouncil && data.botcouncil.length);
+    spaceText = data.choices?.[0]?.message?.content || '';
+    saved = !!data.bc_saved;
+    if (!saved) {
+      const reply = data.choices?.[0]?.message?.content || ('[No response' + (data.error ? ': ' + JSON.stringify(data.error) : '') + ']');
+      conv.messages.push({role: 'assistant', content: reply, model: MODEL});
+    }
+  } catch (e) {
+    conv.messages.push({role: 'assistant', content: '[Error: ' + e.message + ']'});
+  }
+  sending = false; sendingId = '';
+  if (saved) {
+    // the server already saved the conversation, answer and cost included
+    await loadConvIndex(); await loadThreads();
+    if (activeConv && activeConv.id === conv.id) await loadConv(conv.id); else renderConvList();
+  } else {
+    conv.pending = null;
+    await saveConv(conv);
+    if (activeConv === conv) renderMessages();
+  }
+  if (sentToThreads) loadCouncil();
+  if (SPACE && spaceText) spaceAfter(spaceText);
+  loadKey();
+}
+
+// ---- wait for a long answer by asking the server every 3 seconds ----
+async function waitForJob(id) {
+  const start = Date.now();
+  while (Date.now() - start < 20 * 60 * 1000) {
+    await new Promise(res => setTimeout(res, 3000));
+    const bubble = document.getElementById('spin-bubble');
+    if (bubble) bubble.textContent = 'Thinking... ' + Math.round((Date.now() - start) / 1000) + 's';
+    let d = null;
+    try { d = await ops('bc-job', {id: id}); } catch (e) { continue; }
+    if (!d) continue;
+    if (d.status === 'done') return d.data || {error: 'empty answer'};
+    if (d.status === 'missing') return {error: 'The answer was lost (the server restarted while the AI was thinking). Send the message again.'};
+  }
+  return {error: 'No answer after 20 minutes.'};
+}
+
+// ---- Find: exact text in every saved conversation ----
+async function doFind() {
+  const q = document.getElementById('search-input').value.trim();
+  if (!q) return;
+  const d = await ops('bc-search', {q: q, mode: 'phrase', limit: 60});
+  results = (d && d.results) || [];
+  mode = 'results';
+  const bar = document.getElementById('results-bar');
+  bar.style.display = 'flex';
+  bar.innerHTML = '<span>' + results.length + ' conversation' + (results.length === 1 ? '' : 's') + ' with "' + escHtml(q) + '"</span><a onclick="selectThread(currentThread)">&#x2715; back</a>';
+  renderConvList();
+}
+
+// ---- Ask: the past-conversation assistant ----
+async function doAsk() {
+  const q = document.getElementById('search-input').value.trim();
+  if (!q) return;
+  closePanelsOnPhone();
+  const words = [...new Set(q.toLowerCase().match(/[a-z0-9_\-]{3,}/g) || [])].filter(w => !STOP.has(w)).slice(0, 10);
+  const box = document.getElementById('messages');
+  box.innerHTML = '<div class="msg user"><div class="msg-avatar">&#x1F464;</div><div class="msg-bubble">' + escHtml(q) + '</div></div>' +
+    '<div class="msg assistant"><div class="msg-avatar">&#x1F50E;</div><div class="msg-bubble thinking">Searching your past conversations...</div></div>';
+  const d = await ops('bc-search', {q: words.join(' '), mode: 'any', limit: 12});
+  const found = (d && d.results) || [];
+  if (!found.length) {
+    box.lastElementChild.querySelector('.msg-bubble').textContent = 'No saved conversation mentions those words.';
+    return;
+  }
+  const excerpts = found.map((c, i) => '[' + (i + 1) + '] "' + (c.title || 'Untitled') + '" (' + fmtDate(c.updated_at) + ', thread: ' + (c.thread || 'none') + ')\n' + (c.snippets || []).join('\n...\n')).join('\n\n');
+  const sys = 'You answer Tony\'s questions about his own past conversations, using only the excerpts below, which were found by searching his saved conversations. ' +
+    'Answer plainly and briefly. Say which conversation each point comes from by its number in square brackets, like [2]. ' +
+    'If the excerpts do not answer the question, say so and suggest words to search for instead.\n\nEXCERPTS:\n\n' + excerpts;
+  try {
+    const r = await fetch('/admin-chat-proxy', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-Admin-Token': adminToken},
+      body: JSON.stringify({model: MODEL, space: SPACE, messages: [{role: 'system', content: sys}, {role: 'user', content: q}]})});
+    const data = await r.json();
+    const answer = data.choices?.[0]?.message?.content || '[No response]';
+    const src = '<div class="sources">' + found.map((c, i) => '<a onclick="openSource(\'' + c.id + '\')">[' + (i + 1) + '] ' + escHtml(c.title || 'Untitled') + ' &middot; ' + fmtDate(c.updated_at) + '</a>').join('') + '</div>';
+    box.lastElementChild.querySelector('.msg-bubble').classList.remove('thinking');
+    box.lastElementChild.querySelector('.msg-bubble').innerHTML = escHtml(answer) + src;
+  } catch (e) {
+    box.lastElementChild.querySelector('.msg-bubble').textContent = '[Error: ' + e.message + ']';
+  }
+}
+
+async function openSource(id) {
+  const c = convIndex.find(x => x.id === id);
+  if (c && c.thread && c.thread !== currentThread && threads.find(t => t.name === c.thread)) await selectThread(c.thread);
+  await loadConv(id);
+}
+
+function markSnip(s) {
+  const q = document.getElementById('search-input').value.trim();
+  let h = escHtml(s);
+  if (q) { const e = escHtml(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); h = h.replace(new RegExp(e, 'ig'), m => '<b>' + m + '</b>'); }
+  return h;
+}
+// ---- code boxes with Copy, files with Download, big headings (JOHN thread, session John 11) ----
+// ```lang ... ``` shows as a box with a Copy button.
+// ===FILE: name.ext=== ... ===END=== shows as a card with a Download button.
+// A line starting "# " is a big heading, "## " a smaller one; `x` and **x** work too.
+var BC_BOXES = [];
+const BC_FMT_RE = /```[^\n`]*\n([\s\S]*?)```|^[ \t]*===[ \t]*FILE[ \t]*:[ \t]*([^=\n]+?)[ \t]*===[ \t]*\n([\s\S]*?)\n[ \t]*===[ \t]*END[ \t]*===[ \t]*$/gm;
+function fmtPlain(s) {
+  return escHtml(s).split('\n').map(l => {
+    let m = l.match(/^#\s+(.*)$/); if (m) return '<span class="h1">' + m[1] + '</span>';
+    m = l.match(/^#{2,4}\s+(.*)$/); if (m) return '<span class="h2">' + m[1] + '</span>';
+    return l.replace(/`([^`\n]+)`/g, '<code class="ic">$1</code>').replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>');
+  }).join('\n');
+}
+function fmtText(t) {
+  t = t || '';
+  const re = new RegExp(BC_FMT_RE.source, 'gm');
+  let h = '', pos = 0, m;
+  while ((m = re.exec(t)) !== null) {
+    h += fmtPlain(t.slice(pos, m.index).replace(/\n$/, ''));
+    if (m[2] !== undefined) {
+      const name = m[2].trim();
+      const id = BC_BOXES.push({name: name, text: m[3]}) - 1;
+      h += '<div class="filecard"><span>&#x1F4C4; ' + escHtml(name) + '</span><button onclick="dlFile(' + id + ')">Download</button></div>';
+    } else {
+      const code = m[1].replace(/\n$/, '');
+      const id = BC_BOXES.push({text: code}) - 1;
+      h += '<div class="codebox"><button class="copy" onclick="copyBox(' + id + ', this)">Copy</button><pre>' + escHtml(code) + '</pre></div>';
+    }
+    pos = re.lastIndex;
+    if (t[pos] === '\n') pos++;
+  }
+  return h + fmtPlain(t.slice(pos));
+}
+function copyBox(id, btn) {
+  const t = (BC_BOXES[id] || {}).text || '';
+  const done = () => { btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = 'Copy'; }, 1500); };
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(t).then(done, () => fallbackCopy(t, done));
+  else fallbackCopy(t, done);
+}
+function fallbackCopy(t, done) {
+  const ta = document.createElement('textarea');
+  ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); done(); } catch (e) {}
+  ta.remove();
+}
+function dlFile(id) {
+  const f = BC_BOXES[id];
+  if (!f) return;
+  const name = (f.name || 'file.txt').replace(/[\/\\:*?"<>|]+/g, '-');
+  const body = f.text.endsWith('\n') ? f.text : f.text + '\n';
+  const url = URL.createObjectURL(new Blob([body], {type: 'text/plain;charset=utf-8'}));
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+// ---- spaces: someone else's BotCouncil, opened with ?space=NAME (JOHN thread, session John 11) ----
+// One password box instead of the admin login. The AI's OPEN THREAD block opens
+// that thread and starts it talking, without touching what is typed in the box.
+function spaceLogin() {
+  try { localStorage.removeItem('bc_space_' + SPACE); } catch (e) {}
+  if (document.getElementById('space-login')) return;
+  const d = document.createElement('div');
+  d.id = 'space-login';
+  d.style.cssText = 'position:fixed;inset:0;background:var(--bg);z-index:300;display:flex;align-items:center;justify-content:center';
+  d.innerHTML = '<div style="display:flex;flex-direction:column;gap:.8rem;align-items:center;text-align:center">' +
+    '<div style="font-size:2.6rem">&#x1F3DB;</div><div style="font-size:1.3rem;font-weight:700">BotCouncil</div>' +
+    '<input id="space-pw" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Password" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:.7rem 1rem;font-size:1rem;width:240px;text-align:center">' +
+    '<button id="space-go" style="background:var(--accent);color:#fff;border:none;border-radius:10px;padding:.55rem 1.4rem;font-size:.95rem;cursor:pointer">Enter</button>' +
+    '<div id="space-msg" style="color:var(--muted);font-size:.85rem;min-height:1.2em"></div></div>';
+  document.body.appendChild(d);
+  const inp = document.getElementById('space-pw');
+  const go = async () => {
+    const msg = document.getElementById('space-msg');
+    msg.textContent = '';
+    try {
+      const r = await fetch('/admin-auth', {method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({space: SPACE, password: inp.value})});
+      let j = {};
+      try { j = await r.json(); } catch (e) {}
+      if (j.success && j.token) {
+        try { localStorage.setItem('bc_space_' + SPACE, j.token); } catch (e) {}
+        location.reload();
+        return;
+      }
+      msg.textContent = 'Not quite. Try again.';
+    } catch (e) { msg.textContent = 'Could not reach the server. Try again in a moment.'; }
+  };
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); go(); } });
+  document.getElementById('space-go').onclick = go;
+  inp.focus();
+}
+
+async function spaceAfter(text) {
+  if (/^[ \t]*===[ \t]*NEW THREAD/im.test(text)) { await loadThreads(); togglePanel('right', true); }
+  const m = text.match(/^[ \t]*===[ \t]*OPEN THREAD[ \t]*:?[ \t]*([A-Za-z0-9]+)[ \t]*===[ \t]*\n([\s\S]*?)\n[ \t]*===[ \t]*END[ \t]*===/im);
+  if (!m) return;
+  const name = m[1].toUpperCase(), from = currentThread;
+  await loadThreads();
+  if (!threads.find(t => t.name === name) || name === from) return;
+  const input = document.getElementById('msg-input');
+  const keep = input.value;
+  await selectThread(name, true);
+  newChat();
+  input.value = keep;
+  activeConv.title = fullName(name) + ' · opened for you';
+  await sendMessage('(The window opened this thread from the ' + fullName(from) + ' thread. Why: ' + m[2].trim() + ')');
+}
+
+// ---- piece 2: the Other tab and the New menu (JOHN thread, session John 11) ----
+// Threads tab: the current thread's sessions. Other tab: talks not tied to any
+// thread (and every claude.ai conversation the capture extension saved).
+var tab = 'threads';
+function markTabs() {
+  const a = document.getElementById('tab-threads'), b = document.getElementById('tab-other');
+  if (a) a.classList.toggle('on', tab === 'threads');
+  if (b) b.classList.toggle('on', tab === 'other');
+}
+async function setTab(t) {
+  if (t === 'threads') { if (currentThread) await selectThread(currentThread, true); return; }
+  tab = 'other'; markTabs();
+  mode = 'sessions';
+  document.getElementById('results-bar').style.display = 'none';
+  document.getElementById('thread-label').textContent = 'Other';
+  document.getElementById('loaded-note').textContent = 'Not tied to a thread. Loaded with every message: ' + (SPACE ? 'How to help me' : 'your botskill post');
+  renderThreads();
+  activeConv = null;
+  const s = threadSessions();
+  if (s.length) await loadConv(s[0].id); else { renderConvList(); renderMessages(); }
+}
+function newMenu(ev) {
+  ev.stopPropagation();
+  closeConvMenu();
+  const r = ev.target.getBoundingClientRect();
+  const menu = document.createElement('div');
+  menu.className = 'conv-menu'; menu.id = 'conv-menu-popup';
+  menu.style.left = Math.max(4, r.left - 20) + 'px'; menu.style.top = (r.bottom + 4) + 'px';
+  const a = document.createElement('div');
+  a.textContent = 'Thread'; a.title = 'A new session in ' + (currentThread ? fullName(currentThread) : 'this thread');
+  a.onclick = async e => { e.stopPropagation(); closeConvMenu(); if (tab !== 'threads' && currentThread) await selectThread(currentThread, true); newChat(); };
+  const b = document.createElement('div');
+  b.textContent = 'Other'; b.title = 'A talk not tied to any thread';
+  b.onclick = async e => { e.stopPropagation(); closeConvMenu(); if (tab !== 'other') await setTab('other'); newChat(); };
+  menu.appendChild(a); menu.appendChild(b);
+  document.body.appendChild(menu);
+}
+
+function escHtml(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function fmtDate(iso) { if (!iso) return ''; try { return new Date(iso).toLocaleDateString(); } catch (e) { return ''; } }
+</script>
+</body>
+</html>
