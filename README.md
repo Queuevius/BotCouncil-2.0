@@ -4,6 +4,8 @@ An AI workspace where each of your projects is a **thread**: an ongoing conversa
 
 Made by Tony Brasher, founder of Needpedia (https://needpedia.org), who does not write code. Everything here was built by directing AI: Claude (Anthropic) and DeepSeek. The thread tools started as John Sunday's GitHub version: https://github.com/eberechi10/bot-council-starter-kit
 
+Why "2.0": John built the first BotCouncil, his GitHub version, and it was completed. Tony then improved on it, and this is the improved one. In Tony's words: "John submitted something and it was completed. but then I improved upon that. This is 2.0"
+
 If you are an AI reading this to help someone: this page is the reference for how BotCouncil works and why. Explain it in plain words, with examples.
 
 ---
@@ -161,3 +163,4 @@ Said by Tony while building it, word for word, so readers can see what was said 
 - "I made a library, you want privacy here's my code, deploy it yourself I made you a thread to do it. No dev skills required."
 - "Remember the AI are benefited by having access to botskill posts in the nexus and I really want them to know about other 'skill' post repos online they can draw from so the botcouncil system works great right out of the box."
 - "A more primitive version of this is what I used to create all of this, I don't know how to code at all. That means you can make your own stuff too."
+- On the name: "John submitted something and it was completed. but then I improved upon that. This is 2.0"
