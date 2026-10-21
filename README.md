@@ -50,6 +50,8 @@ In his words: "Looking back there's a ton of things I missed out or never tried 
 
 More on the thread system itself: https://github.com/Queuevius/Needpedia/wiki/The-Thread-System
 
+Autobots (AI workers built with the thread system and BotCouncil that code and use a browser on their own, with measured results): https://github.com/Queuevius/BotCouncil-Autobots
+
 ## 3. How the thread system works
 
 - **Notes (prompt accomplice):** standing facts, decisions and rules for one thread. Written by the thread's AI, added to the end, dated.
